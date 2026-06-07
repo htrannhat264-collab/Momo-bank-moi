@@ -1,22 +1,47 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
 import requests
 import json
 
-app = FastAPI()
+# Khởi tạo ứng dụng FastAPI với tài liệu tiếng Việt
+app = FastAPI(
+    title="Hệ thống API kết nối MoMo",
+    description="Ứng dụng trung gian lấy thông tin tài khoản và số dư ví MoMo.",
+    version="1.0.0"
+)
 
-@app.get("/")
+@app.get("/", summary="Trang chủ")
 def home():
-    return {"status": "Momo Bank API đang hoạt động ngon lành!"}
+    return JSONResponse(
+        content={
+            "trang_thai": "Hệ thống đang hoạt động ổn định!",
+            "huong_dan": "Bản hãy truy cập đường dẫn /docs trên trình duyệt để nhập Token mới và chạy thử."
+        },
+        headers={"Content-Type": "application/json; charset=utf-8"}
+    )
 
-@app.get("/get-history")
-def get_momo_history():
-    # URL lấy từ ảnh mới nhất (03:16)
+@app.get("/get-balance", summary="Lấy thông tin số dư ví")
+def get_momo_balance(
+    auth_token: str = Query(
+        ..., 
+        description="Điền chuỗi mã Authorization (Bearer eyJ0eX...) mới nhất bắt được từ điện thoại."
+    ),
+    session_key: str = Query(
+        "2a4999b9-882a-48e8-bbb0-d3211cda1b2b", 
+        description="Mã khóa phiên làm việc (sessionKey) của tài khoản."
+    ),
+    session_tracking: str = Query(
+        "0D9697EF-1861-4E49-B5E2-D775B249DC54", 
+        description="Mã định danh theo dõi thiết bị (momo-session-key-tracking)."
+    )
+):
+    # Đường dẫn API lấy danh sách nguồn tiền từ MoMo
     url = "https://api.momo.vn/backend/sof/api/SOF_LIST_MANAGER_MSG"
     
-    # Cấu hình Headers chuẩn hóa 100% theo ảnh bạn vừa chụp
+    # Cấu hình Headers giả lập thiết bị iPhone của bạn
     headers = {
         "Host": "api.momo.vn",
-        "sessionKey": "2a4999b9-882a-48e8-bbb0-d3211cda1b2b",
+        "sessionKey": session_key,
         "app_code": "5.10.1",
         "MsgType": "SOF_LIST_MANAGER_MSG",
         "user_phone": "01682962182",
@@ -27,13 +52,10 @@ def get_momo_history():
         "device_performance": "high-end",
         "Accept-Encoding": "gzip, deflate, br",
         "channel": "APP",
-        "momo-session-key-tracking": "0D9697EF-1861-4E49-B5E2-D775B249DC54",
+        "momo-session-key-tracking": session_tracking,
         "baggage": "sentry-environment=PRODUCTION,sentry-public_key=6e80c9f01f2440c9be5b37606028f996,sentry-release=vn.momo.platform.ios%405.10.1%2B51001,sentry-trace_id=5cbdae3eaa2549e69cded63b8e8ac08d",
         "Connection": "keep-alive",
-        
-        # Chuỗi token mới dài full từ ảnh 3 sang ảnh 4
-        "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ1c2VyIjoiMDE2ODI5NjIxODIiLCJpbWVpIjoiNTEwMDEtODYyODRhYWQyYjQwYmNlMTI2ZWJlZWY0MzEzOGY0ZjkzMjZlOTgyNTE4ZmMwNmE1NjE2ZDc4OWI4NDJiZDcxYSIsImhJbWVpIjoiOEZiSVBHVkI4dEkyR3BGRWpGeTE5YkxuTGFlSkFSY2lOWERWckRWWGNwWGZtWnUzek1uNE9uNWx5UWdISzByb05FZVZ3cHdFNFRzMjlLTWZsZFlzUEtKNFVtSnRyaVdaVkd2NGlxa0ZqWUU9IiwiTUFQX1NBQ09NX0NBUkQiOjAsIk5BTUUiOiJUcuG6p24gTmjhuq10IEhvw6BuZyIsIkRFVklDRV9PUyI6ImlvcyIsIkFQUF9WRVIiOjUxMDAxLCJhZ2VudF9pZCI6MTEwMzM1MTY0LCJzZXNzaW9uS2V5IjoiREZEMmJOaGpoYllaVzhJRWtkNVNzWStMb3hvUFBGdVpzZzg4V2tZTlJ2ZFZnSHl2YlcvSlR3PT0iLCJ1c2VyX3R5cGUiOjEsImtleSI6Im1vbW8iLCJyYXBpZF9pZCI6IjZXS0pSNkNlMzF1UnlaSjZxSXoybU1vTlcrcUVncVBsZFR3TUFtOTZoSHQxSXA5aEZXbWF1RGttTTREQkthLzFWamFiN1BUOWFKUT0iLCJ1aWQiOiIwMzgyOTYyMTgyIiwiZXhwIjoxNzgxMjkzNDY5fQ.qI4X_mscD0yM2KuMI_p7pj6-Dz1vQtA_K_2XAzgd8mDNWMXBJm5RrGTgIZmjYrqWsMrb23A-sntQ27tv45jbqEwG5AV-7dgSOeBD5pDL55qV2vUEJTJM25Wm90sGqk3DVu_ELri2Tf7T5fmhdzLJmpWH-YtWk4Tg1mr7gTUkIVvokjt8tT8byh0bgbvvSlo7Nnwk0n5UOZtUfKsOzHvP_zUsAqSB2OuR2qFD20JenL6dTtpckBVdbmZCKsgQkV-ZruUTFrL7TCJHK0AWIBFbjS0bZIaZCHaKiYx2s6KbQPU-miIQE_uZc2-pa50aLMdeKE4GqrayuT8NYxe4SjV9EA",
-        
+        "Authorization": auth_token,  # Nhận token động truyền vào từ trình duyệt
         "timezone": "Asia/Ho_Chi_Minh",
         "env": "production",
         "device_os": "IOS",
@@ -48,18 +70,50 @@ def get_momo_history():
         "Accept-Language": "vi-VN,vi;q=0.9"
     }
     
-    # Bạn kiểm tra phần "Preview JSON" ở dưới cùng ảnh 4 để điền chính xác object này vào nhé
     payload = {} 
     
     try:
+        # Gửi yêu cầu đến máy chủ MoMo
         response = requests.post(url, headers=headers, json=payload)
         
+        # Nếu MoMo trả về mã lỗi (Ví dụ: 401 hết hạn token, 403 bị chặn...)
         if response.status_code != 200:
-            return {
-                "error": f"MoMo trả về mã lỗi HTTP {response.status_code}",
-                "detail": response.text
-            }
-        return response.json()
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "ket_qua": "Thất bại",
+                    "loi": f"Máy chủ MoMo phản hồi mã lỗi HTTP {response.status_code}",
+                    "chi_tiet": response.text
+                },
+                headers={"Content-Type": "application/json; charset=utf-8"}
+            )
+            
+        # Trả về kết quả thành công và hiển thị dữ liệu tiếng Việt chuẩn
+        return JSONResponse(
+            content={
+                "ket_qua": "Thành công",
+                "du_lieu": response.json()
+            },
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
         
+    except json.JSONDecodeError:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ket_qua": "Thất bại",
+                "loi": "Phản hồi từ MoMo không đúng định dạng dữ liệu JSON.",
+                "phan_hoi_goc": response.text
+            },
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
     except Exception as e:
-        return {"error": str(e)}
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ket_qua": "Thất bại",
+                "loi": "Đã xảy ra lỗi trong quá trình xử lý kết nối",
+                "chi_tiet": str(e)
+            },
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
