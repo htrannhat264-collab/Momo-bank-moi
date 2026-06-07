@@ -6,12 +6,17 @@ app = FastAPI()
 
 @app.get("/")
 def home():
-    return {"status": "Momo API đang chạy ngon lành!"}
+    return {
+        "status": "Momo API đang chạy thành công!",
+        "huong_dan": "Truy cập đường dẫn /get-history để lấy lịch sử hoặc /docs để chạy thử nghiệm."
+    }
 
 @app.get("/get-history")
 def get_momo_history():
+    # URL API lấy lịch sử Túi Thần Tài MoMo
     url = "https://api.momo.vn/transis/api/transis/golden-pocket/trans/browse"
     
+    # Các Header được trích xuất từ thiết bị của bạn
     headers = {
         "Host": "api.momo.vn",
         "sessionKey": "2a4999b9-882a-48e8-bbb0-d3211cda1b2b",
@@ -33,10 +38,35 @@ def get_momo_history():
         "Accept-Language": "vi-VN,vi;q=0.9"
     }
     
-    payload = {"offset": 0, "limit": 20}
+    # Request Body mẫu để phân trang lấy lịch sử (Bổ sung thêm nếu ứng dụng yêu cầu tham số khác)
+    payload = {
+        "offset": 0,
+        "limit": 20
+    }
     
     try:
+        # Gửi request POST lên MoMo
         response = requests.post(url, headers=headers, json=payload)
+        
+        # Nếu MoMo phản hồi lỗi hệ thống (Ví dụ: Mã HTTP 401, 403, 500...)
+        if response.status_code != 200:
+            return {
+                "error": f"MoMo phản hồi mã lỗi HTTP {response.status_code}",
+                "detail": response.text  # Trả về chuỗi lỗi gốc thay vì cố giải mã JSON
+            }
+            
+        # Trả về kết quả JSON lịch sử nếu MoMo xử lý thành công (HTTP 200)
         return response.json()
+
+    except json.JSONDecodeError:
+        # Trường hợp MoMo trả về HTTP 200 nhưng nội dung bên trong lại là một trang web lỗi HTML
+        return {
+            "error": "Phản hồi từ MoMo không phải định dạng JSON hợp lệ.",
+            "raw_response": response.text
+        }
     except Exception as e:
-        return {"error": str(e)}
+        # Bắt các lỗi kết nối mạng, timeout...
+        return {
+            "error": "Đã xảy ra lỗi trong quá trình xử lý request",
+            "detail": str(e)
+        }
